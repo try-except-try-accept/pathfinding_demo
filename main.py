@@ -1,312 +1,240 @@
-from turtle import Turtle, Screen, screensize
+from turtle import Turtle, Screen, done
 
-W, H = screensize()
+NODE_SIZE = 20
+
+def calculate_distance(node1, node2):
+	return abs(node1.x - node2.x) + abs(node1.y - node2.y)
+
+def calculate_midpoint(node1, node2):
+
+	return node1.x + abs(node1.x - node2.x), node1.y + abs(node1.y - node2.y)
+
+class Node:
+	def __init__(self, x, y, label):
+		self.x, self.y = x, y
+		self.label = label
+		self.connections = []
+		self.selected = False
+		self.left = self.x - (NODE_SIZE)
+		self.right = self.x + (NODE_SIZE)
+		self.top = self.y + (NODE_SIZE * 2)
+		self.bottom = self.y
 
 
-square_size = 6
+	def __repr__(self):
+		return (f"left:{self.left} right:{self.right} top:{self.top} bottom:{self.bottom}")
 
-size = 6
+	def deselect(self):
+		self.selected = False
 
-origin = False
-destination = False
+	def draw(self):
+
+		node_tt.speed(0)
+		node_tt.hideturtle()
+		node_tt.penup()
+		node_tt.goto(self.x, self.y)
+		node_tt.pendown()
+		if self.selected:
+			node_tt.color("red")
+		else:
+			node_tt.color("black")
+
+		node_tt.begin_fill()
+		node_tt.circle(NODE_SIZE)
+		node_tt.end_fill()
 
 
-graph_change = False
-
-## app_state ::= 0 (setup)  1 (plot)   2 (run)
-
-app_state = 0
 
 
+class WeightLabel:
+	SIZE = 32
 
-def get_nearest_square(x, y):
-     print("Clicked at ", x, y)
-     x = x - (x % square_size) - lost_width
-     y = y - (y % square_size)
+	def __init__(self, value, x, y):
+		self.weight = value
+		self.left = x
+		self.top = y
+		self.right = x + self.SIZE
+		self.bottom = y + self.SIZE
 
-     print("Now at", x, y)
+	def adjust(self, change=-1):
 
-     return x, y
+		if self.weight > 1:
+			self.weight += change
+
+	def draw(self):
+		t = Turtle()
+		t.speed(0)
+		t.penup()
+		t.goto(self.x, self.y, font=("Courier New", self.SIZE, "normal"))
+
+
+
+
+
 
 
 class Connection:
 
-     def __init__(self):
-
-          self.origin = None
-          self.destination = None
-          self.steps = []
-          self.drawn = False
-
-     def append(self, x, y):
-          print("appended", x, y)
-          self.steps.append((x, y))
-
-     def draw(self, t):
-
-          for x, y in self.steps:
-               if (x,y) == self.destination: continue
-               t.penup()
-               t.goto(x, y)
-               t.begin_fill()
-               for _ in range(4):
-                    t.forward(square_size)
-                    t.right(90)
-               t.end_fill()
-          self.drawn = True
-
-          
+	def __init__(self, origin, destination):
+		self.origin = origin
+		self.destination = destination
+		self.weight = calculate_distance(origin, destination)
+		midpoint = calculate_midpoint(origin, destination)
+		self.label = WeightLabel(self.weight, *midpoint)
 
 
-class Node:
+	def draw(self):
 
-     def __init__(self, x, y):
-          self.x, self.y = x, y
-          self.connections = []
-          self.drawn = False
 
-     def draw(self, t):
-          t.penup()
-          t.goto(self.x, self.y)
-          t.begin_fill()
-          for _ in range(4):
-               t.forward(square_size)
-               t.right(90)
-          t.end_fill()
-          self.drawn = True
+		conn_tt.speed(0)
+		conn_tt.hideturtle()
 
-          
+		conn_tt.penup()
+		conn_tt.goto(self.origin.x, self.origin.y)
+		conn_tt.pendown()
+		conn_tt.goto(self.destination.x, self.destination.y)
 
-     def add_connection(self, x, y):
 
-          if not self.connections or self.connections[-1].destination is None:
-               self.connections.append(Connection())
-
-          print("Node class")
-          most_recent_conn = self.connections[-1]
-
-          print("Most recent conn", most_recent_conn)
-
-          most_recent_conn.append(x, y)
-          
-          print("Why append not work")
-
-     def end_connection(self, x, y):
-          self.connections[-1].destination = (x, y)
-
-          
-          
-
-          
 
 class Graph:
 
-     def __init__(self):
-          self.nodes = {}
-          self.most_recent_node = None
+	def __init__(self):
+
+		self.nodes = {}
+		self.current_label = 65
+		self.currently_selected = None
+		self.labels = []
+
+	def get_next_label(self):
+		label = self.current_label
+		self.current_label += 1
+		return chr(label)
+
+	def add_node(self, x, y):
 
 
-     def set_node(self, x, y):
-          x, y = get_nearest_square(x, y)
-          node_connector.goto(x, y)
-          
-          if (x,y) not in self.nodes:
-               this_node = Node(x, y)
-               self.nodes[(x,y)] = (this_node)
-          else:
-               this_node = self.nodes[(x, y)]
-               
-          self.current_node = this_node
+		label = self.get_next_label()
+		new_node = Node(x, y, label)
+		self.nodes[label] = new_node
+		return new_node
 
-          print("Current node is", x, y)
+		
+		
 
-          
+	def select_label(self, x, y):
+		for label in self.labels:
+			if label.left <= x <= label.right:
+				if label.bottom <= y <= label.top:
+					return label
 
-     def draw_nodes(self):
-          node_t = Turtle()
-          node_t.hideturtle()
-          conn_t = Turtle()
-          conn_t.hideturtle()
-          print("Made turtle")
-          node_t.color("green")
-          node_t.speed(0)
-          conn_t.color("yellow")
-          conn_t.speed(0)
-          print("speed turtle")
-          for node in self.nodes.values():
-               if not node.drawn:
-                    node.draw(node_t)
+		return None
 
-               for connection in node.connections:
+	def select_node(self, x, y):
+		node_found = None
 
-                    if not connection.drawn:
-
-                         connection.draw(conn_t)
-
-                    
-
-               
+		for node in self.nodes.values():
 
 
-     def connect_nodes(self, to_x, to_y):
+			node.deselect()
 
-          to_x, to_y = get_nearest_square(to_x, to_y)
-
-          if (to_x, to_y) in self.nodes:
-               print("End of connection")
-               self.current_node.end_connection(to_x, to_y)
-
-          else:
-               print("Extending connection")
-               self.current_node.add_connection(to_x, to_y)
+			if node_found:
+				continue
 
 
+			if node.left <= x <= node.right:
+				if node.bottom <= y <= node.top:
+					node_found = node
+					node_found.selected = True
+					continue
 
-          
-
-                    
-
-                    
-
-          
-
-          
-               
+		if node_found:
+			return node_found
 
 
-     
-               
-          
-     
+		return self.add_node(x, y)
 
-     
-          
+	def update_graph(self):
 
+		nodes = dict(self.nodes).values()
 
-def get_num(prompt):
+		for node in nodes:
+			node.draw()
 
-     num = input(prompt)
+			for connection in node.connections:
+				connection.draw()
 
-     while not num.isdigit() or not (6 <= int(num) <= 25):
-          print("Invalid. Enter between 6 and 25.")
-          num = input(prompt)
+	def add_connection(self, orig=None, dest=None):
 
-     return int(num)
+		if orig is None:
+			orig = self.currently_selected
+		new_connection = Connection(orig, dest)
 
+		self.labels.append(new_connection.label)
+		orig.connections.append(new_connection)
 
+		self.currently_selected = dest
 
+class App:
 
+	def __init__(self):
 
-
-def sel_origin():
-     if app_state == 1:
-          origin = True
-          destination = False
-
-
-def sel_destination():
-     if app_state == 1:
-          destination = True
-          origin = False
-
-def sel_node():
-     if app_state == 1:
-          destination, origin = False, False
-     
-def handle_click(x, y):
-     
-     global graph_change
-     if app_state == 1:
-          node_connector.goto(x, y)
-          graph.set_node(x, y)
-          print("adding node")
-          graph_change = True
-          graph.draw_nodes()
-     
-
-def draw_grid(square_size):
-     t = Turtle()
-     t.hideturtle()
-     t.speed(0)
-     left, right = -W, W
-     top, bottom = -H, H
-     t.penup()
-     t.goto(left, top)
-     
-     for x in range(left, right+1, square_size):
-          print(x)
-          t.goto(x, top)
-          t.pendown()
-          t.goto(x, bottom)
-          t.penup()
-
-     for y in range(top, bottom, square_size):
-          t.goto(left, y)
-          
-          t.pendown()
-          
-          t.goto(right, y)
-          t.penup()
+		self.connecting = False
+		self.graph = Graph()
 
 
-     
+	def click_handler(self, x, y):
+
+
+		g = self.graph
+
+		if self.connecting:
+			print("Making a connection")
+			destination = g.select_node(x, y)
+			g.add_connection(dest=destination)
+			self.connecting = False
+
+		else:
+
+			label = g.select_label(x, y)
+			if label is not None:
+				print("Selected a label")
+			else:
+				node = g.select_node(x, y)
+
+				g.currently_selected = node
+
+
+		g.update_graph()
+
+	def key_down_handler(self):
+		if not self.connecting:
+			print("Connecting")
+			self.connecting = True
+
+	def key_up_handler(self):
+		print("No longer connecting")
+		self.connecting = False
 
 
 
-               
-
-def main():
-     global app_state, square_size, size, lost_width, graph_change
 
 
-     #size = get_num("Enter grid size: ")
-     size = 10
+	# click to create a node / select a node
 
+	# shift click to connect nodes
 
-     
-     square_size = int(H / size)
+	# click and drag weight label to adjust weight
 
-     lost_width = W % square_size
-     
-     
-     
-     app_state = 1
-
-     restart = False
-     plot_path = False
-     draw_grid(square_size)
-     
-          
-
-
-##          try:
-##               run_path_find()
-##          except KeyboardInterrupt:
-##               restart = True
-               
-
-     return restart
+node_tt = Turtle()
+conn_tt = Turtle()
 
 screen = Screen()
-screen.onkey(sel_origin, "o")
-screen.onkey(sel_destination, "d")
-screen.onkey(sel_node, "n")
-screen.onclick(handle_click)
+app = App()
 
-graph = Graph()
+screen.onclick(app.click_handler)
 
-node_connector = Turtle()
+screen.onkeypress(app.key_down_handler, "z")
+screen.onkeyrelease(app.key_up_handler, "z")
 
-node_connector.ondrag(graph.connect_nodes)
-
-node_connector.penup()
-
-
-if __name__ == "__main__":
-     use_app = True
-     while use_app:
-          app_state = 0
-          use_app = main()
-               
-
-     
+screen.listen()
+done()
