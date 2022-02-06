@@ -33,29 +33,50 @@ class Node:
 		self.right = self.x + (NODE_SIZE)
 		self.top = self.y + (NODE_SIZE * 2)
 		self.bottom = self.y
+		self.is_origin = False
+		self.is_destination = False
 
 
 	def __repr__(self):
 		return (f"left:{self.left} right:{self.right} top:{self.top} bottom:{self.bottom}")
 
-	def deselect(self):
-		self.selected = False
+	def deselect(self, mode=None):
+		if mode == "origin":
+			self.is_origin = True
+		elif mode == "destination":
+			self.is_destination = True
+		else:
+			self.selected = False
+
 
 	def draw(self):
 
 		node_tt.speed(0)
+		if self.is_origin:
+			node_tt.color("blue")
+		elif self.is_destination:
+			node_tt.color("green")
+		else:
+			node_tt.color("black")
+
 		node_tt.hideturtle()
 		node_tt.penup()
 		node_tt.goto(self.x, self.y)
 		node_tt.pendown()
 		if self.selected:
-			node_tt.color("red")
+			node_tt.fillcolor("red")
 		else:
-			node_tt.color("black")
+			node_tt.fillcolor("black")
 
 		node_tt.begin_fill()
 		node_tt.circle(NODE_SIZE)
+
+
 		node_tt.end_fill()
+		node_tt.penup()
+		node_tt.goto(self.x-NODE_SIZE*0.15, self.y+(NODE_SIZE*0.66))
+		node_tt.color("white")
+		node_tt.write(self.label)
 
 
 
@@ -125,7 +146,7 @@ class Graph:
 		self.current_label = 65
 		self.currently_selected = None
 		self.labels = []
-		self.connections = []
+		self.connections = {}
 
 	def get_next_label(self):
 		label = self.current_label
@@ -153,11 +174,14 @@ class Graph:
 
 		return None
 
-	def select_node(self, x, y):
+	def select_node(self, x, y, make_new=True):
 		node_found = None
 
-		for node in self.nodes.values():
 
+
+
+
+		for node in self.nodes.values():
 
 			node.deselect()
 
@@ -174,15 +198,17 @@ class Graph:
 		if node_found:
 			return node_found
 
+		if make_new:
+			return self.add_node(x, y)
+		else:
+			return None
 
-		return self.add_node(x, y)
+	def update_graph(self, element):
 
-	def update_graph(self):
 
-		nodes = list(dict(self.nodes).values())
-
-		for element in nodes + self.connections + self.labels:
-			element.draw()
+		element.draw()
+		if type(element) == Connection:
+			element.label.draw()
 
 
 
@@ -190,32 +216,55 @@ class Graph:
 
 	def add_connection(self, orig=None, dest=None):
 
+
+
 		if orig is None:
 			orig = self.currently_selected
+
+		connection_hash = hash(str(orig) + str(dest))
+
+		print(connection_hash)
+
+		if orig is dest or connection_hash in self.connections:
+			return None
+
 		new_connection = Connection(orig, dest)
 
 		self.labels.append(new_connection.label)
-		self.connections.append(new_connection)
+		self.connections[connection_hash]  = new_connection
 
 		self.currently_selected = dest
+
+		return new_connection
 
 class App:
 
 	def __init__(self):
 
 		self.connecting = False
+		self.setting_origin = False
+		self.setting_dest = False
 		self.graph = Graph()
 
 
-	def click_handler(self, x, y):
 
+	def click_handler(self, x, y):
+		x, y = int(x), int(y)
 
 		g = self.graph
 
+		if self.setting_origin:
+			selected_node = g.select_node(x, y, make_new=False)
+			if selected_node is not None:
+				[node.deselect("origin") for node in self.nodes.values() if node is not selected_node]
+				selected_node.is_origin = True
+				new_element = selected_node
+
+
 		if self.connecting:
 			print("Making a connection")
-			destination = g.select_node(x, y)
-			g.add_connection(dest=destination)
+			destination = g.select_node(x, y, make_new=False)
+			new_element = g.add_connection(dest=destination)
 			self.connecting = False
 
 		else:
@@ -224,21 +273,40 @@ class App:
 			if label is not None:
 				print("Selected a label")
 			else:
-				node = g.select_node(x, y)
+				new_element = g.select_node(int(x), int(y))
+				g.currently_selected = new_element
 
-				g.currently_selected = node
 
+		g.update_graph(new_element)
 
-		g.update_graph()
-
-	def key_down_handler(self):
+	def start_connect_handler(self):
 		if not self.connecting:
 			print("Connecting")
 			self.connecting = True
 
-	def key_up_handler(self):
+	def stop_connect_handler(self):
 		print("No longer connecting")
 		self.connecting = False
+
+	def start_origin_select_handler(self):
+		if not self.setting_origin:
+			print("Setting origin node")
+			self.setting_origin = True
+
+	def stop_origin_select_handler(self):
+		print("No longer setting origin node")
+		self.setting_origin = False
+
+	def start_dest_select_handler(self):
+		if not self.setting_dest:
+			print("Setting destination node")
+			self.setting_dest = True
+
+	def stop_dest_select_handler(self):
+		print("No longer setting destination node")
+		self.setting_dest = False
+
+
 
 
 
@@ -251,6 +319,7 @@ class App:
 	# click and drag weight label to adjust weight
 
 node_tt = Turtle()
+node_tt.pensize(10)
 conn_tt = Turtle()
 label_tt = Turtle()
 
@@ -259,8 +328,12 @@ app = App()
 
 screen.onclick(app.click_handler)
 
-screen.onkeypress(app.key_down_handler, "z")
-screen.onkeyrelease(app.key_up_handler, "z")
+screen.onkeypress(app.start_connect_handler, "z")
+screen.onkeyrelease(app.stop_connect_handler, "z")
+screen.onkeypress(app.start_origin_select_handler, "o")
+screen.onkeyrelease(app.stop_origin_select_handler, "o")
+screen.onkeypress(app.start_dest_select_handler, "d")
+screen.onkeyrelease(app.stop_dest_select_handler, "d")
 
 screen.listen()
 done()
