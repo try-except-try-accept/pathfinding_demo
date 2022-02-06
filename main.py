@@ -28,55 +28,53 @@ class Node:
 		self.x, self.y = x, y
 		self.label = label
 		self.connections = []
-		self.selected = False
 		self.left = self.x - (NODE_SIZE)
 		self.right = self.x + (NODE_SIZE)
 		self.top = self.y + (NODE_SIZE * 2)
 		self.bottom = self.y
-		self.is_origin = False
-		self.is_destination = False
+		self.role = None
+		self.t = Turtle()
+		self.t.hideturtle()
+		self.t.pensize(10)
 
 
 	def __repr__(self):
 		return (f"left:{self.left} right:{self.right} top:{self.top} bottom:{self.bottom}")
 
 	def deselect(self, mode=None):
-		if mode == "origin":
-			self.is_origin = True
-		elif mode == "destination":
-			self.is_destination = True
+		if mode == self.role:
+			print(self, f"Is no longer the {mode}")
+			self.role = None
+
+
+	def draw(self, selected=None):
+
+		self.t.speed(0)
+		if self.role == "origin":
+			self.t.color("blue")
+		elif self.role == "destination":
+			self.t.color("green")
 		else:
-			self.selected = False
+			self.t.color("black")
 
-
-	def draw(self):
-
-		node_tt.speed(0)
-		if self.is_origin:
-			node_tt.color("blue")
-		elif self.is_destination:
-			node_tt.color("green")
+		self.t.hideturtle()
+		self.t.penup()
+		self.t.goto(self.x, self.y)
+		self.t.pendown()
+		if self == selected:
+			self.t.fillcolor("red")
 		else:
-			node_tt.color("black")
+			self.t.fillcolor("black")
 
-		node_tt.hideturtle()
-		node_tt.penup()
-		node_tt.goto(self.x, self.y)
-		node_tt.pendown()
-		if self.selected:
-			node_tt.fillcolor("red")
-		else:
-			node_tt.fillcolor("black")
-
-		node_tt.begin_fill()
-		node_tt.circle(NODE_SIZE)
+		self.t.begin_fill()
+		self.t.circle(NODE_SIZE)
 
 
-		node_tt.end_fill()
-		node_tt.penup()
-		node_tt.goto(self.x-NODE_SIZE*0.15, self.y+(NODE_SIZE*0.66))
-		node_tt.color("white")
-		node_tt.write(self.label)
+		self.t.end_fill()
+		self.t.penup()
+		self.t.goto(self.x-NODE_SIZE*0.15, self.y+(NODE_SIZE*0.66))
+		self.t.color("white")
+		self.t.write(self.label)
 
 
 
@@ -97,7 +95,8 @@ class WeightLabel:
 		if self.weight > 1:
 			self.weight += change
 
-	def draw(self):
+	def draw(self, selected=None):
+
 		if not self.drawn:
 
 			label_tt.speed(0)
@@ -125,7 +124,7 @@ class Connection:
 		self.label = WeightLabel(self.weight, *midpoint)
 
 
-	def draw(self):
+	def draw(self, selected=None):
 
 
 		conn_tt.speed(0)
@@ -147,6 +146,7 @@ class Graph:
 		self.currently_selected = None
 		self.labels = []
 		self.connections = {}
+		self.redraw = set()
 
 	def get_next_label(self):
 		label = self.current_label
@@ -158,7 +158,7 @@ class Graph:
 
 		label = self.get_next_label()
 		new_node = Node(x, y, label)
-		new_node.selected = True
+
 		self.nodes[label] = new_node
 		self.currently_selected = new_node
 		return new_node
@@ -174,29 +174,27 @@ class Graph:
 
 		return None
 
-	def select_node(self, x, y, make_new=True):
+	def select_node(self, x, y, make_new=True, keep_selected=False):
 		node_found = None
 
-
-
-
-
 		for node in self.nodes.values():
-
-			node.deselect()
 
 			if node_found:
 				continue
 
-
 			if node.left <= x <= node.right:
 				if node.bottom <= y <= node.top:
 					node_found = node
-					node_found.selected = True
+					if not keep_selected:
+						self.currently_selected = node_found
 					continue
 
 		if node_found:
+			print("node found")
 			return node_found
+
+		else:
+			print("node not found")
 
 		if make_new:
 			return self.add_node(x, y)
@@ -205,10 +203,22 @@ class Graph:
 
 	def update_graph(self, element):
 
+		print("updated graph because", type(element))
 
-		element.draw()
+		if element is not None:
+			element.draw(self.currently_selected)
 		if type(element) == Connection:
 			element.label.draw()
+
+		to_redraw = set(self.redraw)
+
+		for redraw_element in to_redraw:
+			redraw_element.draw()
+			self.redraw.remove(redraw_element)
+
+
+		if type(element) == Node:
+			self.redraw.add(element)
 
 
 
@@ -216,24 +226,23 @@ class Graph:
 
 	def add_connection(self, orig=None, dest=None):
 
-
-
-		if orig is None:
-			orig = self.currently_selected
-
 		connection_hash = hash(str(orig) + str(dest))
 
 		print(connection_hash)
 
-		if orig is dest or connection_hash in self.connections:
+		if orig == dest:
+			print("Can't link a node to itself")
+			return None
+
+		if connection_hash in self.connections:
+			print("already connected")
+
 			return None
 
 		new_connection = Connection(orig, dest)
 
 		self.labels.append(new_connection.label)
 		self.connections[connection_hash]  = new_connection
-
-		self.currently_selected = dest
 
 		return new_connection
 
@@ -253,18 +262,25 @@ class App:
 
 		g = self.graph
 
-		if self.setting_origin:
+		if self.setting_origin or self.setting_dest:
+			new_role = "origin" if self.setting_origin else "destination"
 			selected_node = g.select_node(x, y, make_new=False)
 			if selected_node is not None:
-				[node.deselect("origin") for node in self.nodes.values() if node is not selected_node]
-				selected_node.is_origin = True
+				for other_node in g.nodes.values():
+					if other_node.role == new_role:
+						other_node.deselect(new_role)
+						g.redraw.add(other_node)
+
+				selected_node.role = new_role
 				new_element = selected_node
 
 
 		if self.connecting:
 			print("Making a connection")
-			destination = g.select_node(x, y, make_new=False)
-			new_element = g.add_connection(dest=destination)
+			origin = g.currently_selected
+			destination = g.select_node(x, y, make_new=False, keep_selected=True)
+			new_element = g.add_connection(orig=origin, dest=destination)
+			print("The new element is", new_element)
 			self.connecting = False
 
 		else:
@@ -320,8 +336,11 @@ class App:
 
 node_tt = Turtle()
 node_tt.pensize(10)
+node_tt.hideturtle()
 conn_tt = Turtle()
+conn_tt.hideturtle()
 label_tt = Turtle()
+label_tt.hideturtle()
 
 screen = Screen()
 app = App()
