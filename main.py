@@ -7,8 +7,22 @@ def calculate_distance(node1, node2):
 
 def calculate_midpoint(node1, node2):
 
-	return node1.x + abs(node1.x - node2.x), node1.y + abs(node1.y - node2.y)
+	print("Midpoint between")
+	print(node1)
+	print("And")
+	print(node2)
 
+	if node1.x > node2.x:
+		new_x =  node1.x - (abs(node1.x - node2.x)) // 2
+	else:
+		new_x = node1.x + (abs(node1.x - node2.x)) // 2
+
+	if node1.y > node2.y:
+	 	new_y = node1.y - abs(node1.y - node2.y) // 2
+	else:
+		new_y = node1.y + abs(node1.y - node2.y) // 2
+
+	return new_x, new_y
 class Node:
 	def __init__(self, x, y, label):
 		self.x, self.y = x, y
@@ -47,14 +61,15 @@ class Node:
 
 
 class WeightLabel:
-	SIZE = 32
+	SIZE = 14
 
 	def __init__(self, value, x, y):
 		self.weight = value
-		self.left = x
+		self.left = x + 10
 		self.top = y
 		self.right = x + self.SIZE
 		self.bottom = y + self.SIZE
+		self.drawn = False
 
 	def adjust(self, change=-1):
 
@@ -62,10 +77,15 @@ class WeightLabel:
 			self.weight += change
 
 	def draw(self):
-		t = Turtle()
-		t.speed(0)
-		t.penup()
-		t.goto(self.x, self.y, font=("Courier New", self.SIZE, "normal"))
+		if not self.drawn:
+
+			label_tt.speed(0)
+			label_tt.penup()
+			label_tt.goto(self.left, self.top)
+			label_tt.pendown()
+			label_tt.write(str(self.weight), font=("Courier New", self.SIZE, "normal"))
+
+		self.drawn = True
 
 
 
@@ -80,6 +100,7 @@ class Connection:
 		self.destination = destination
 		self.weight = calculate_distance(origin, destination)
 		midpoint = calculate_midpoint(origin, destination)
+		print("Will draw label at", midpoint)
 		self.label = WeightLabel(self.weight, *midpoint)
 
 
@@ -104,6 +125,7 @@ class Graph:
 		self.current_label = 65
 		self.currently_selected = None
 		self.labels = []
+		self.connections = []
 
 	def get_next_label(self):
 		label = self.current_label
@@ -115,7 +137,9 @@ class Graph:
 
 		label = self.get_next_label()
 		new_node = Node(x, y, label)
+		new_node.selected = True
 		self.nodes[label] = new_node
+		self.currently_selected = new_node
 		return new_node
 
 		
@@ -155,13 +179,14 @@ class Graph:
 
 	def update_graph(self):
 
-		nodes = dict(self.nodes).values()
+		nodes = list(dict(self.nodes).values())
 
-		for node in nodes:
-			node.draw()
+		for element in nodes + self.connections + self.labels:
+			element.draw()
 
-			for connection in node.connections:
-				connection.draw()
+
+
+
 
 	def add_connection(self, orig=None, dest=None):
 
@@ -170,7 +195,7 @@ class Graph:
 		new_connection = Connection(orig, dest)
 
 		self.labels.append(new_connection.label)
-		orig.connections.append(new_connection)
+		self.connections.append(new_connection)
 
 		self.currently_selected = dest
 
@@ -227,6 +252,7 @@ class App:
 
 node_tt = Turtle()
 conn_tt = Turtle()
+label_tt = Turtle()
 
 screen = Screen()
 app = App()
