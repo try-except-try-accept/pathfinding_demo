@@ -825,31 +825,10 @@ Press 2 to run the A* Algorithm""".split("\t"):
 
                         # A* Algorithm - something is broken here
 
-                        distances = [calculate_distance(n, g.destination) for n in g.nodes.values()]
-
-
-                        max_distance = max(distances)
-
-                        print("Maximum distance is", max_distance)
-
-                        weights = [connection.label.weight for connection in g.connections.values()]
-
-                        max_weight = max(weights)
-
-                        print("Max weight is", max_weight)
-
-                        h_cost_div_factor = (max_weight / max_distance) / 2
-
-                        
-                        print("Multiply all weights by", h_cost_div_factor)
-                        
-
-                                              
-
                          # set up table
                         table = {n:{"node":str(n),
                                     "g-cost":INF if n is not origin else 0,
-                                    "h-cost":round(calculate_distance(n, destination) * h_cost_div_factor, 2),
+                                    "h-cost":calculate_distance(n, destination)/1000,
                                     "f-cost":INF,
                                     "prev":"", "calc":""} for n in g.nodes.values()}                        
 
@@ -880,9 +859,6 @@ Press 2 to run the A* Algorithm""".split("\t"):
                                 ## find the open list node with smallest known f-cost                              
 
                                 current_node = min(open_nodes, key=lambda n: table[n]["f-cost"])
-
-                                if current_node == g.destination:
-                                        break
                                 
                                 print("The current vertex is", current_node)
 
