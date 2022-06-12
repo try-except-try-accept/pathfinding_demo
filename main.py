@@ -3,22 +3,24 @@ from math import inf as INF
 from random import randint
 from time import sleep
 import ctypes
-user32 = ctypes.windll.user32
-dimensions = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
-
-
-W, H = dimensions[0] // 2.1, dimensions[1] // 2.85
-
-screensize(W, H)
-
-print(W, H)
 
 
 #RANDOM_GRAPH = [[randint(-W, W), randint(-H, H)] for i in range(5)]
 #RANDOM_GRAPH = [[-229, -291], [237, -292], [-244, 164], [-179, -134], [209, 9]]
 #print(f"RANDOM_GRAPH = {RANDOM_GRAPH}")
 
+
+# set up canvas:
+Turtle().write("initialising...")
+user32 = ctypes.WinDLL('user32')
+SW_MAXIMISE = 3
+hWnd = user32.GetForegroundWindow()
+user32.ShowWindow(hWnd, SW_MAXIMISE)
+dimensions = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+W, H = dimensions[0] // 2.1, dimensions[1] // 2.85
+screensize(W, H)
+Screen().clear()
 
 RANDOM_GRAPH = True
 NODE_SIZE = 20
