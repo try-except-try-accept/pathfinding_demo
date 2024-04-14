@@ -702,7 +702,9 @@ Press DELETE to delete a node and its connections.
 Press R to generate a new random graph.
 Press I to delete all island nodes.
 Press 1 to run Dijkstra's Algorithm
-Press 2 to run the A* Algorithm""".split("\t"):
+Press 2 to run the A* Algorithm
+Press 3 to run a BFS
+Press 4 to run a DFS""".split("\t"):
                         
                         t.penup()
                         t.goto(-W, H)
@@ -717,17 +719,225 @@ Press 2 to run the A* Algorithm""".split("\t"):
                 
 
                         
+        def perform_dijkstras(self, g, origin, destination, rows):
+                # Dijkstra's Algorithm
+                origin = g.origin
+
+
+                # set up table
+                table = {n:{"node":str(n), "cost":INF if n is not origin else 0, "prev":"", "calc":""} for n in g.nodes.values()}                        
+
+                self.table = Table(-W, H-MSG_SIZE, table)
+
+                self.table.draw()
+
+                for n, row in table.items():
+                        self.update_row(n,
+                                   {"node":n,
+                                   "cost":row["cost"],      
+                                   "prev":row["prev"],
+                                   "calc":row["calc"]})                
+
+                unvisited = list(g.nodes.values())
+                visited = []
+
+                while len(unvisited):
+
+                        smallest = INF
+                        current_node = None
+
+                        ## find the unvisited vertex with smallest known distance from the origin
+                        for node, data in table.items():
+                                if node not in unvisited:        continue
+                                if data["cost"] < smallest:
+                                        smallest = data["cost"]
+                                        current_node = node
+                        print("The current vertex is", current_node)
+
+                        ## find each unvisited neighbour of the current vertex
+
+                        for neighbour in current_node.connections:
+                                g.currently_selected = neighbour
+                                g.update(neighbour)
+                                
+                                print(f"{current_node} is connected to {neighbour}")
+                                if neighbour not in unvisited:
+                                        print("Already visited")
+                                else:
+                                        ## calculate total distance from origin node
+                                        tot = g.get_distance(current_node, neighbour)
+
+                                        calc = str(tot)
+                                        # until we've got back to the start
+
+                                        
+                                        print(f"We need to make it back from {current_node} to {origin}")
+                                        pitstop = table[current_node]["cost"]
+                                        print(f"Came via {current_node} and that cost {pitstop}")
+                                        tot += pitstop
+                                        calc += " + " + str(pitstop)
+                                        print(f"so the total is now {tot}")
+
+
+                                        if tot < table[neighbour]["cost"]:
+                                                table[neighbour]["prev"] = current_node                                                        
+                                                table[neighbour]["cost"] = tot                                                                                                              
+                                                table[neighbour]["calc"] = calc
+                                                self.update_row(neighbour,
+                                                           {"cost":tot,      
+                                                            "prev":current_node,
+                                                            "calc":calc})
+                                                
+                                                for node, data in table.items():
+                                                        print(
+                                                                f'{str(node)} \t\t {data["cost"]} \t\t {data["prev"]} \t\t {data["calc"]}')
+
+                                                print()
+                                        else:
+                                                print(f"{tot} was not shorter. table not updated")
+                        unvisited.remove(current_node)
+                self.trace_best_path(table, g, origin)
+
+        def perform_a_star(self, g, origin, destination, rows):
+                # A* Algorithm - something is broken here
+
+                distances = [calculate_distance(n, g.destination) for n in g.nodes.values()]
+
+
+                max_distance = max(distances)
+
+                print("Maximum distance is", max_distance)
+
+                weights = [connection.label.weight for connection in g.connections.values()]
+
+                max_weight = max(weights)
+
+                print("Max weight is", max_weight)
+
+                h_cost_div_factor = (max_weight / max_distance) / 2
+
+                
+                print("Multiply all weights by", h_cost_div_factor)
+                
+
+                                      
+
+                 # set up table
+                table = {n:{"node":str(n),
+                            "g-cost":INF if n is not origin else 0,
+                            "h-cost":round(calculate_distance(n, destination) * h_cost_div_factor, 2),
+                            "f-cost":INF,
+                            "prev":"", "calc":""} for n in g.nodes.values()}                        
+
+                self.table = Table(-W, H-MSG_SIZE, table)
+
+                self.table.draw()
+
+                for n, row in table.items():
+                        self.update_row(n,
+                                   {"node":n,
+                                   "g-cost":row["g-cost"],
+                                   "h-cost":row["h-cost"],
+                                   "f-cost":row["f-cost"],
+                                   "prev":row["prev"],
+                                   "calc":row["calc"]})
+
+                # OPEN - the set of nodes to be evaluated
+                # add the start node to open
+                open_nodes = set([origin])
+                # CLOSED - the set of nodes already evaluated
+                closed_nodes = set()
+
+
+                current_node = None
+
+                while len(open_nodes):
+
+                        ## find the open list node with smallest known f-cost                              
+
+                        current_node = min(open_nodes, key=lambda n: table[n]["f-cost"])
+
+                        if current_node == g.destination:
+                                break
                         
+                        print("The current vertex is", current_node)
+
+                        ## remove current from OPEN
+                        open_nodes.remove(current_node)
+
+                        ## add current to CLOSED
+                        closed_nodes.add(current_node)
+
+                        ## find each un-closed neighbour of the current node
+                        for neighbour in current_node.connections:                                        
+
+                                if neighbour in closed_nodes:
+                                        continue
+
+                                ## calculate f-cost
+                                g_cost = g.get_distance(current_node, neighbour)
+                                calc = str(g_cost)        
+
+                                
+                                
+                                pitstop = table[current_node]["g-cost"]
+                                
+                                print(f"Came via {current_node} and that cost {pitstop}")
+                                g_cost += pitstop
+                                                                        
+                                calc += " + " + str(pitstop)                             
+                                h_cost = table[neighbour]["h-cost"]                                        
+                                calc += f" + {h_cost}"
+
+                                f_cost = g_cost + h_cost
+
+                                
+                                print(f"so the f_cost is now {f_cost}")
+
+                                if neighbour not in open_nodes or g_cost < table[neighbour]["g-cost"]:
+                                        open_nodes.add(neighbour)
+                                        table[neighbour]["prev"] = current_node                                                        
+                                        table[neighbour]["f-cost"] = f_cost
+                                        table[neighbour]["g-cost"] = g_cost
+                                                                                            
+                                        table[neighbour]["calc"] = calc
+                                        
+                                        self.update_row(neighbour,
+                                                   {"g-cost":g_cost,
+                                                    "h-cost":h_cost,
+                                                    "f-cost":f_cost,
+                                                    "prev":str(current_node),
+                                                    "calc":calc})
+                                        
+                                        for node, data in table.items():
+                                                print(
+                                                        f'{str(node)} \t\t {data["f-cost"]} \t\t {data["h-cost"]} \t\t {data["g-cost"]} \t\t {data["prev"]} \t\t {data["calc"]}')
+
+                                        print()
+                                else:
+                                        print(f"{f_cost} was not shorter. table not updated")
+
+
+                                open_nodes.add(neighbour)
+                        
+                                
+
+
+                        
+                self.trace_best_path(table, g, origin)
+
+
+        def update_row(self, neighbour, updates):
+
+                for heading, value in updates.items():
+                                
+                        self.table.update(neighbour, heading, str(value))
+                                
 
         def run_demo(self):
 
 
-                def update_row(neighbour, updates):
-
-                        for heading, value in updates.items():
-                                
-                                self.table.update(neighbour, heading, str(value))
-                                
+                
                         
                 g = self.graph
 
@@ -755,219 +965,16 @@ Press 2 to run the A* Algorithm""".split("\t"):
                 destination = g.destination
 
                 if self.selected_algorithm == 0:
-                        # Dijkstra's Algorithm
-                        origin = g.origin
-
-
-                        # set up table
-                        table = {n:{"node":str(n), "cost":INF if n is not origin else 0, "prev":"", "calc":""} for n in g.nodes.values()}                        
-
-                        self.table = Table(-W, H-MSG_SIZE, table)
-
-                        self.table.draw()
-
-                        for n, row in table.items():
-                                update_row(n,
-                                           {"node":n,
-                                           "cost":row["cost"],      
-                                           "prev":row["prev"],
-                                           "calc":row["calc"]})
-                        
-
-                        unvisited = list(g.nodes.values())
-
-                        visited = []
-
-
-                        while len(unvisited):
-
-                                smallest = INF
-                                current_node = None
-
-                                ## find the unvisited vertex with smallest known distance from the origin
-                                for node, data in table.items():
-                                        if node not in unvisited:        continue
-                                        if data["cost"] < smallest:
-                                                smallest = data["cost"]
-                                                current_node = node
-                                print("The current vertex is", current_node)
-
-                                ## find each unvisited neighbour of the current vertex
-
-                                for neighbour in current_node.connections:
-                                        g.currently_selected = neighbour
-                                        g.update(neighbour)
-                                        
-                                        print(f"{current_node} is connected to {neighbour}")
-                                        if neighbour not in unvisited:
-                                                print("Already visited")
-                                        else:
-                                                ## calculate total distance from origin node
-                                                tot = g.get_distance(current_node, neighbour)
-
-                                                calc = str(tot)
-                                                # until we've got back to the start
-
-                                                
-                                                print(f"We need to make it back from {current_node} to {origin}")
-                                                pitstop = table[current_node]["cost"]
-                                                print(f"Came via {current_node} and that cost {pitstop}")
-                                                tot += pitstop
-                                                calc += " + " + str(pitstop)
-                                                print(f"so the total is now {tot}")
-
-
-                                                if tot < table[neighbour]["cost"]:
-                                                        table[neighbour]["prev"] = current_node                                                        
-                                                        table[neighbour]["cost"] = tot                                                                                                              
-                                                        table[neighbour]["calc"] = calc
-                                                        update_row(neighbour,
-                                                                   {"cost":tot,      
-                                                                    "prev":current_node,
-                                                                    "calc":calc})
-                                                        
-                                                        for node, data in table.items():
-                                                                print(
-                                                                        f'{str(node)} \t\t {data["cost"]} \t\t {data["prev"]} \t\t {data["calc"]}')
-
-                                                        print()
-                                                else:
-                                                        print(f"{tot} was not shorter. table not updated")
-                                unvisited.remove(current_node)
+                        self.perform_dijkstras(g, origin, destination, rows)
 
                 else:
-
-                        # A* Algorithm - something is broken here
-
-                        distances = [calculate_distance(n, g.destination) for n in g.nodes.values()]
-
-
-                        max_distance = max(distances)
-
-                        print("Maximum distance is", max_distance)
-
-                        weights = [connection.label.weight for connection in g.connections.values()]
-
-                        max_weight = max(weights)
-
-                        print("Max weight is", max_weight)
-
-                        h_cost_div_factor = (max_weight / max_distance) / 2
+                        self.perform_a_star(g, origin, destination, rows)
 
                         
-                        print("Multiply all weights by", h_cost_div_factor)
-                        
-
-                                              
-
-                         # set up table
-                        table = {n:{"node":str(n),
-                                    "g-cost":INF if n is not origin else 0,
-                                    "h-cost":round(calculate_distance(n, destination) * h_cost_div_factor, 2),
-                                    "f-cost":INF,
-                                    "prev":"", "calc":""} for n in g.nodes.values()}                        
-
-                        self.table = Table(-W, H-MSG_SIZE, table)
-
-                        self.table.draw()
-
-                        for n, row in table.items():
-                                update_row(n,
-                                           {"node":n,
-                                           "g-cost":row["g-cost"],
-                                           "h-cost":row["h-cost"],
-                                           "f-cost":row["f-cost"],
-                                           "prev":row["prev"],
-                                           "calc":row["calc"]})
-
-                        # OPEN - the set of nodes to be evaluated
-                        # add the start node to open
-                        open_nodes = set([origin])
-                        # CLOSED - the set of nodes already evaluated
-                        closed_nodes = set()
-
-
-                        current_node = None
-
-                        while len(open_nodes):
-
-                                ## find the open list node with smallest known f-cost                              
-
-                                current_node = min(open_nodes, key=lambda n: table[n]["f-cost"])
-
-                                if current_node == g.destination:
-                                        break
-                                
-                                print("The current vertex is", current_node)
-
-                                ## remove current from OPEN
-                                open_nodes.remove(current_node)
-
-                                ## add current to CLOSED
-                                closed_nodes.add(current_node)
-
-                                ## find each un-closed neighbour of the current node
-                                for neighbour in current_node.connections:                                        
-
-                                        if neighbour in closed_nodes:
-                                                continue
-
-                                        ## calculate f-cost
-                                        g_cost = g.get_distance(current_node, neighbour)
-                                        calc = str(g_cost)        
-
-                                        
-                                        
-                                        pitstop = table[current_node]["g-cost"]
-                                        
-                                        print(f"Came via {current_node} and that cost {pitstop}")
-                                        g_cost += pitstop
-                                                                                
-                                        calc += " + " + str(pitstop)                             
-                                        h_cost = table[neighbour]["h-cost"]                                        
-                                        calc += f" + {h_cost}"
-
-                                        f_cost = g_cost + h_cost
-
-                                        
-                                        print(f"so the f_cost is now {f_cost}")
-
-                                        if neighbour not in open_nodes or g_cost < table[neighbour]["g-cost"]:
-                                                open_nodes.add(neighbour)
-                                                table[neighbour]["prev"] = current_node                                                        
-                                                table[neighbour]["f-cost"] = f_cost
-                                                table[neighbour]["g-cost"] = g_cost
-                                                                                                    
-                                                table[neighbour]["calc"] = calc
-                                                
-                                                update_row(neighbour,
-                                                           {"g-cost":g_cost,
-                                                            "h-cost":h_cost,
-                                                            "f-cost":f_cost,
-                                                            "prev":str(current_node),
-                                                            "calc":calc})
-                                                
-                                                for node, data in table.items():
-                                                        print(
-                                                                f'{str(node)} \t\t {data["f-cost"]} \t\t {data["h-cost"]} \t\t {data["g-cost"]} \t\t {data["prev"]} \t\t {data["calc"]}')
-
-                                                print()
-                                        else:
-                                                print(f"{f_cost} was not shorter. table not updated")
-
-
-                                        open_nodes.add(neighbour)
-                                
-                                        
-
-
-                                
-
-
                 
 
                         
-
+        def trace_best_path(self, table, g, origin):
                         
 
                 destination = g.destination
@@ -1133,6 +1140,24 @@ Press 2 to run the A* Algorithm""".split("\t"):
                 self.selected_algorithm = 1
                 self.run_demo()
 
+        def bfs_handler(self):
+                note = ""
+                if g.origin is None or g.destination is None:
+                        note = "Exploring entire graph as no origin/destination was set"                        
+                show_info(f"Running the breadth-first search algorithm. {note}")
+                self.selected_algorithm = 2
+                self.run_demo()
+
+        def dfs_handler(self):
+                note = ""
+                if g.origin is None or g.destination is None:
+                        note = "Exploring entire graph as no origin/destination was set"                        
+                show_info(f"Running the depth-first search algorithm. {note}")
+                self.selected_algorithm = 3
+                self.run_demo()
+
+        
+
 
 
 
@@ -1178,6 +1203,8 @@ screen.onkeyrelease(app.stop_label_adjust_handler, "a")
 screen.onkeypress(app.delete_handler, "Delete")
 screen.onkeypress(app.dijkstras_handler, "1")
 screen.onkeypress(app.a_star_handler, "2")
+screen.onkeypress(app.bfs_handler, "3")
+screen.onkeypress(app.dfs_handler, "4")
 screen.onkeypress(app.new_graph, "r")
 
 screen.listen()
