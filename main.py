@@ -356,7 +356,7 @@ class Graph:
                                         if node == other_node:
                                                 continue
 
-                                        if randint(0, 100) > 70:
+                                        if randint(0, 100) > 70 and other_node not in node.connections:
                                                 new_conn = self.add_connection(node, other_node)
                                                 self.redraw.add(new_conn)
                                                 self.redraw.add(new_conn.label)
