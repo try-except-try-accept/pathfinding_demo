@@ -343,6 +343,7 @@ class Graph:
                 self.redraw = set()
                 self.origin = None
                 self.destination = None
+                self.iter_q = []
 
                 if RANDOM_GRAPH:
 
@@ -363,6 +364,16 @@ class Graph:
 
 
                         self.update(None)
+
+        def __iter__(self):
+                self.iter_q = list(self.nodes.values())
+                return self
+
+        def __next__(self):
+                if self.iter_q:
+                        return self.iter_q.pop(0)
+                raise StopIteration
+                
 
         def get_next_label(self):
                 label = self.current_label
@@ -430,9 +441,9 @@ class Graph:
                         return None
 
 
-        def delete_node(self):
-
-                delete = self.currently_selected
+        def delete_node(self, delete=None):
+                if delete is None:
+                        delete = self.currently_selected
 
                 if delete == self.origin:
                         self.origin = None
@@ -689,6 +700,7 @@ Hold D and click to decide the destination node.
 Hold A and drag to adjust a weight label.
 Press DELETE to delete a node and its connections.
 Press R to generate a new random graph.
+Press I to delete all island nodes.
 Press 1 to run Dijkstra's Algorithm
 Press 2 to run the A* Algorithm""".split("\t"):
                         
@@ -1052,6 +1064,11 @@ Press 2 to run the A* Algorithm""".split("\t"):
 
                         g.update(new_element)
 
+        def delete_islands_handler(self):
+                for node in self.graph:
+                        if len(node.connections) == 0:
+                                self.graph.delete_node(node)
+
         def delete_handler(self):
                 selected = self.graph.currently_selected
                 if selected is not None:
@@ -1156,6 +1173,7 @@ screen.onkeyrelease(app.stop_origin_select_handler, "o")
 screen.onkeypress(app.start_dest_select_handler, "d")
 screen.onkeyrelease(app.stop_dest_select_handler, "d")
 screen.onkeypress(app.start_label_adjust_handler, "a")
+screen.onkeypress(app.delete_islands_handler, "i")
 screen.onkeyrelease(app.stop_label_adjust_handler, "a")
 screen.onkeypress(app.delete_handler, "Delete")
 screen.onkeypress(app.dijkstras_handler, "1")
